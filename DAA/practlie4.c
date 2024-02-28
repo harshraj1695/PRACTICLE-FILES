@@ -1,24 +1,50 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// Structure to represent an edge
+// Structure to represent an edge in the graph
 struct Edge {
     int src, dest, weight;
 };
 
-// Structure to represent a subset (used for Union-Find)
+// Structure to represent a subset for union-find
 struct Subset {
-    int parent, rank;
+    int parent;
+    int rank;
 };
 
-// Function to find the parent of a vertex (using Union-Find)
+// Function prototypes
+int find(struct Subset subsets[], int i);
+void unionSets(struct Subset subsets[], int x, int y);
+int compareEdges(const void *a, const void *b);
+void kruskal(struct Edge edges[], int V, int E);
+
+int main() {
+    // Example graph representation
+    int V = 4; // Number of vertices
+    int E = 5; // Number of edges
+
+    struct Edge edges[] = {
+        {0, 1, 10},
+        {0, 2, 6},
+        {0, 3, 5},
+        {1, 3, 15},
+        {2, 3, 4}
+    };
+
+    // Applying Kruskal's algorithm
+    kruskal(edges, V, E);
+
+    return 0;
+}
+
+// Find set of an element i (uses path compression technique)
 int find(struct Subset subsets[], int i) {
     if (subsets[i].parent != i)
         subsets[i].parent = find(subsets, subsets[i].parent);
     return subsets[i].parent;
 }
 
-// Function to perform Union of two subsets
+// Perform union of two sets (uses union by rank)
 void unionSets(struct Subset subsets[], int x, int y) {
     int xroot = find(subsets, x);
     int yroot = find(subsets, y);
@@ -33,49 +59,55 @@ void unionSets(struct Subset subsets[], int x, int y) {
     }
 }
 
-// Kruskal's algorithm to find MST
+// Comparison function for sorting edges based on weight
+int compareEdges(const void *a, const void *b) {
+    return ((struct Edge*)a)->weight - ((struct Edge*)b)->weight;
+}
+
+// Kruskal's algorithm to find the minimum spanning tree
 void kruskal(struct Edge edges[], int V, int E) {
-    struct Edge result[V];
-    int e = 0, i = 0;
+    // Allocate memory for the subsets
+    struct Subset *subsets = (struct Subset*)malloc(V * sizeof(struct Subset));
 
-    // Sort edges in non-decreasing order of weight
-    qsort(edges, E, sizeof(struct Edge), compareEdges);
-
-    struct Subset* subsets = (struct Subset*)malloc(V * sizeof(struct Subset));
-    for (int v = 0; v < V; v++) {
-        subsets[v].parent = v;
-        subsets[v].rank = 0;
+    // Create V subsets with single elements
+    for (int i = 0; i < V; i++) {
+        subsets[i].parent = i;
+        subsets[i].rank = 0;
     }
 
-    while (e < V - 1 && i < E) {
-        struct Edge nextEdge = edges[i++];
+    // Sort the edges in non-decreasing order of weight
+    qsort(edges, E, sizeof(edges[0]), compareEdges);
 
-        int x = find(subsets, nextEdge.src);
-        int y = find(subsets, nextEdge.dest);
+    // Initialize result
+    struct Edge *result = (struct Edge*)malloc((V-1) * sizeof(struct Edge));
 
+    int i = 0; // Index used to pick the next edge to include in the result
+
+    // Number of edges to be included in the result
+    int e = 0;
+
+    // Loop until we reach V-1 edges in the result
+    while (e < V - 1) {
+        // Pick the smallest edge and increment the index for next iteration
+        struct Edge next_edge = edges[i++];
+
+        int x = find(subsets, next_edge.src);
+        int y = find(subsets, next_edge.dest);
+
+        // If including this edge doesn't cause a cycle, add it to the result and increment the edge count
         if (x != y) {
-            result[e++] = nextEdge;
+            result[e++] = next_edge;
             unionSets(subsets, x, y);
         }
     }
 
+    // Print the resulting minimum spanning tree
     printf("Edges in the Minimum Spanning Tree:\n");
-    for (int j = 0; j < e; j++)
-        printf("%d -- %d (weight %d)\n", result[j].src, result[j].dest, result[j].weight);
+    for (i = 0; i < e; i++) {
+        printf("(%d, %d) with weight %d\n", result[i].src, result[i].dest, result[i].weight);
+    }
 
+    // Free allocated memory
     free(subsets);
-}
-
-int main() {
-    int V = 6; // Number of vertices
-    int E = 9; // Number of edges
-    struct Edge edges[] = {
-        {0, 1, 4}, {0, 2, 4}, {1, 2, 2},
-        {1, 0, 4}, {2, 0, 4}, {2, 1, 2},
-        {2, 3, 3}, {2, 5, 2}, {2, 4, 4}
-    };
-
-    kruskal(edges, V, E);
-
-    return 0;
+    free(result);
 }
